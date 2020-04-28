@@ -1,0 +1,60 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Post;
+use App\User;
+use Illuminate\Http\Request;
+use Intervention\Image\Facades\Image;
+
+class PostsController extends Controller
+{
+    //
+    public function __construct(){
+        $this->middleware('auth');
+    }
+
+    public function index(){
+        $user = auth()->user();
+        $users = auth()->user()->following()->pluck('profiles.user_id');
+
+        $posts = Post::whereIn('user_id' , $users)->latest()->get();
+
+        return view('posts.index',compact('posts' , 'user'));
+    }
+
+    public function create(){
+        return view('posts.create');
+    }
+
+    public function store(){
+        $data = request()->validate([
+            'caption' => 'required',
+            'image' => ['required', 'image'],
+        ]);
+
+
+        $imagePath = request('image')->store('uploads','public');
+
+        $image = Image::make(public_path("storage/{$imagePath}" ))->fit(1080,1080);
+        $image->save();
+
+        auth()->user()->posts()->create([
+            'caption' => $data['caption'],
+            'image' => $imagePath,
+        ]);
+
+        return redirect('/profile/'.auth()->user()->id);
+    }
+
+    public function show(\App\Post $post){
+
+
+        $user = User::findOrFail( $post->User_id );
+
+        return view('posts.show', [
+            'post' => $post,
+            'user' => $user,
+        ]);
+    }
+}
